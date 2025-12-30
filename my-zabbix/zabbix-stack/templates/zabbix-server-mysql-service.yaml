@@ -1,0 +1,27 @@
+{{- if .Values.zabbix_server_mysql.enable }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "zabbix-server-mysql.fullname" . }}
+  labels:
+    app: {{ template "zabbix-server-mysql.fullname" . }}
+    chart: {{ template "zabbix.chart" . }}
+    release: {{ .Release.Name | quote }}
+    heritage: {{ .Release.Service | quote }}
+  annotations:
+{{- if .Values.zabbix_server_mysql.service.annotations }}
+{{ toYaml .Values.zabbix_server_mysql.service.annotations | indent 4 }}
+{{- end }}
+spec:
+  type: {{ .Values.zabbix_server_mysql.service.type }}
+  {{- if eq .Values.zabbix_server_mysql.service.type "LoadBalancer" }}
+  externalTrafficPolicy: {{ .Values.zabbix_server_mysql.service.externalTrafficPolicy | quote }}
+  {{- end }}
+  ports:
+    - name:
+      port: {{ .Values.zabbix_server_mysql.service.port }}
+      targetPort: trapper
+      nodePort: null
+  selector:
+    app: {{ template "zabbix-server-mysql.fullname" . }}
+{{- end }}

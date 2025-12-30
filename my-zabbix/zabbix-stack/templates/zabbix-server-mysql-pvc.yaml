@@ -1,0 +1,21 @@
+{{- if and .Values.zabbix_server_mysql.enable .Values.zabbix_server_mysql.persistence.enable }}
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ .Values.zabbix_server_mysql.persistence.claimName }}
+  labels:
+    app: {{ template "zabbix-server-mysql.fullname" . }}
+    chart: {{ template "zabbix.chart" . }}
+    release: {{ .Release.Name | quote }}
+    heritage: {{ .Release.Service | quote }}
+spec:
+  accessModes:
+    - {{ .Values.zabbix_server_mysql.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.zabbix_server_mysql.persistence.size | quote }}
+  {{- if .Values.zabbix_server_mysql.persistence.storageClass }}
+  storageClassName: {{ .Values.zabbix_server_mysql.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}

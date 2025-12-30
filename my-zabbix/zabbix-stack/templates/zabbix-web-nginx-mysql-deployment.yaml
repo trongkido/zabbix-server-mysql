@@ -1,0 +1,95 @@
+{{- if .Values.zabbix_web_nginx_mysql.enable }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "zabbix-web-nginx-mysql.fullname" . }}
+  labels:
+    app: {{ template "zabbix-web-nginx-mysql.fullname" . }}
+    chart: {{ template "zabbix.chart" . }}
+    release: {{ .Release.Name | quote }}
+    heritage: {{ .Release.Service | quote }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "zabbix-web-nginx-mysql.fullname" . }}
+      release: {{ .Release.Name | quote }}
+  {{- if .Values.zabbix_web_nginx_mysql.image.updateStrategy }}
+  strategy: {{ toYaml .Values.zabbix_web_nginx_mysql.image.updateStrategy | nindent 4 }}
+  {{- end }}
+  replicas: {{ .Values.zabbix_web_nginx_mysql.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "zabbix-web-nginx-mysql.fullname" . }}
+        chart: {{ template "zabbix.chart" . }}
+        release: {{ .Release.Name | quote }}
+{{- if or .Values.zabbix_web_nginx_mysql.podAnnotations }}
+      annotations:
+{{ toYaml .Values.zabbix_web_nginx_mysql.podAnnotations | indent 8 }}
+{{- end }}
+    spec:
+      {{- if .Values.zabbix_web_nginx_mysql.schedulerName }}
+      schedulerName: {{ .Values.zabbix_web_nginx_mysql.schedulerName }}
+      {{- end }}
+      containers:
+      - name: {{ include "zabbix-web-nginx-mysql.fullname" . }}
+        image: {{ template "zabbix_web_nginx_mysql.image" . }}
+        imagePullPolicy: {{ .Values.zabbix_web_nginx_mysql.image.pullPolicy | quote }}
+        env:
+        - name: DB_SERVER_HOST
+          value: {{ include "mysql.fullname" . }}
+        - name: DB_SERVER_PORT
+          value: "3306"
+        - name: MYSQL_DATABASE
+          value: {{ .Values.mysql.auth.database | quote }}
+        - name: MYSQL_USER
+          value: {{ .Values.mysql.auth.username | quote }}
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "mysql.fullname" . }}
+              key: mysql-password
+        {{- if and .Values.zabbix_server_mysql.enable (not .Values.zabbix_server_mysql.haNodes.enable) }}
+        - name: ZBX_SERVER_HOST
+          value: {{ template "zabbix-server-mysql.fullname" . }}
+        {{- end }}
+        {{ range $key, $val := .Values.zabbix_web_nginx_mysql.vars }}
+        - name: {{ $key | upper }}
+          value: "{{ $val }}"
+        {{ end }}
+        ports:
+        - name: http
+          containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /index.php
+            port: 8080
+            scheme: HTTP
+{{- if .Values.zabbix_web_nginx_mysql.livenessProbe }}
+{{ toYaml .Values.zabbix_web_nginx_mysql.livenessProbe | indent 10 }}
+{{- end }}
+        readinessProbe:
+          httpGet:
+            path: /index.php
+            port: 8080
+            scheme: HTTP
+{{- if .Values.zabbix_web_nginx_mysql.readinessProbe }}
+{{ toYaml .Values.zabbix_web_nginx_mysql.readinessProbe | indent 10 }}
+{{- end }}
+{{- if .Values.zabbix_web_nginx_mysql.resources }}
+        resources:
+{{ toYaml .Values.zabbix_web_nginx_mysql.resources | indent 10 }}
+{{- end }}
+{{- if .Values.zabbix_web_nginx_mysql.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.zabbix_web_nginx_mysql.nodeSelector | indent 8 }}
+{{- end }}
+{{- with .Values.zabbix_web_nginx_mysql.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.zabbix_web_nginx_mysql.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,142 @@
+{{- if .Values.zabbix_server_mysql.enable }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "zabbix-server-mysql.fullname" . }}
+  labels:
+    app: {{ template "zabbix-server-mysql.fullname" . }}
+    chart: {{ template "zabbix.chart" . }}
+    release: {{ .Release.Name | quote }}
+    heritage: {{ .Release.Service | quote }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "zabbix-server-mysql.fullname" . }}
+      release: {{ .Release.Name | quote }}
+  {{- if .Values.zabbix_server_mysql.image.updateStrategy }}
+  strategy: {{ toYaml .Values.zabbix_server_mysql.image.updateStrategy | nindent 4 }}
+  {{- end }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ template "zabbix-server-mysql.fullname" . }}
+        chart: {{ template "zabbix.chart" . }}
+        release: {{ .Release.Name | quote }}
+{{- if or .Values.zabbix_server_mysql.podAnnotations }}
+      annotations:
+{{ toYaml .Values.zabbix_server_mysql.podAnnotations | indent 8 }}
+{{- end }}
+    spec:
+      {{- if .Values.zabbix_server_mysql.schedulerName }}
+      schedulerName: {{ .Values.zabbix_server_mysql.schedulerName }}
+      {{- end }}
+      containers:
+      - name: {{ include "zabbix-server-mysql.fullname" . }}
+        image: {{ template "zabbix_server_mysql.image" . }}
+        imagePullPolicy: {{ .Values.zabbix_server_mysql.image.pullPolicy | quote }}
+        env:
+        - name: DB_SERVER_HOST
+          value: {{ include "mysql.fullname" . }}
+        - name: DB_SERVER_PORT
+          value: "3306"
+        - name: MYSQL_DATABASE
+          value: {{ .Values.mysql.auth.database | quote }}
+        - name: MYSQL_USER
+          value: {{ .Values.mysql.auth.username | quote }}
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "mysql.fullname" . }}
+              key: mysql-password
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "mysql.fullname" . }}
+              key: mysql-root-password
+        {{- if .Values.zabbix_server_mysql.haNodes.enable }}
+        - name: ZBX_AUTOHANODENAME
+          value: "hostname"
+        - name: ZBX_NODEADDRESS
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        {{ end }}
+        {{ range $key, $val := .Values.zabbix_server_mysql.vars }}
+        - name: {{ $key | upper }}
+          value: "{{ $val }}"
+        {{ end }}
+        ports:
+        - name: trapper
+          containerPort: 10051
+        livenessProbe:
+          tcpSocket:
+            port: 10051
+{{- if .Values.zabbix_server_mysql.livenessProbe }}
+{{ toYaml .Values.zabbix_server_mysql.livenessProbe | indent 10 }}
+{{- end }}
+        readinessProbe:
+          tcpSocket:
+            port: 10051
+{{- if .Values.zabbix_server_mysql.readinessProbe }}
+{{ toYaml .Values.zabbix_server_mysql.readinessProbe | indent 10 }}
+{{- end }}
+        {{- if .Values.zabbix_server_mysql.persistence.enabled }}
+        volumeMounts:
+        - mountPath: /var/lib/zabbix/alertscripts
+          name: zabbix
+          subPath: alertscripts
+        - mountPath: /var/lib/zabbix/externalscripts
+          name: zabbix
+          subPath: externalscripts
+        - mountPath: /var/lib/zabbix/enc
+          name: zabbix
+          subPath: enc
+        - mountPath: /var/lib/zabbix/mibs
+          name: zabbix
+          subPath: mibs
+        - mountPath: /var/lib/zabbix/modules
+          name: zabbix
+          subPath: modules
+        - mountPath: /var/lib/zabbix/snmptraps
+          name: zabbix
+          subPath: snmptraps
+        - mountPath: /var/lib/zabbix/ssh_keys
+          name: zabbix
+          subPath: ssh-keys
+        - mountPath: /var/lib/zabbix/ssl/certs
+          name: zabbix
+          subPath: ssl-certs
+        - mountPath: /var/lib/zabbix/ssl/keys
+          name: zabbix
+          subPath: ssl-keys
+        - mountPath: /var/lib/zabbix/ssl/ssl_ca
+          name: zabbix
+          subPath: ssl-ssl-ca
+        - mountPath: /var/lib/zabbix/userscripts
+          name: zabbix
+          subPath: userscripts
+        {{- end }}
+{{- if .Values.zabbix_server_mysql.resources }}
+        resources:
+{{ toYaml .Values.zabbix_server_mysql.resources | indent 10 }}
+{{- end }}
+      volumes:
+      {{- if .Values.zabbix_server_mysql.persistence.enabled }}
+      - name: zabbix-server
+        persistentVolumeClaim:
+          claimName: {{ .Values.zabbix_server_mysql.persistence.claimName }}
+      {{- end }}
+{{- if .Values.zabbix_server_mysql.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.zabbix_server_mysql.nodeSelector | indent 8 }}
+{{- end -}}
+{{- with .Values.zabbix_server_mysql.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.zabbix_server_mysql.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- end }}

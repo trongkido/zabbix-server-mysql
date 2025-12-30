@@ -1,0 +1,41 @@
+{{- if and .Values.zabbix_web_nginx_mysql.enable .Values.zabbix_web_nginx_mysql.ingress.enable (eq .Values.zabbix_web_nginx_mysql.service.type "ClusterIP") }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ template "zabbix-web-nginx-mysql.fullname" . }}
+  labels:
+    app: {{ template "zabbix-web-nginx-mysql.fullname" . }}
+    chart: {{ template "zabbix.chart" . }}
+    release: {{ .Release.Name | quote }}
+    heritage: {{ .Release.Service | quote }}
+  annotations:
+    {{- if .Values.zabbix_web_nginx_mysql.ingress.tls.enable }}
+    nginx.ingress.kubernetes.io/ssl-redirect: true
+    cert-manager.io/issuer: letsencrypt-{{ .Values.zabbix_web_nginx_mysql.ingress.enviroment }}
+    cert-manager.io/kind: ClusterIssuer
+    {{- end }}
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+spec:
+  rules:
+    {{- if .Values.zabbix_web_nginx_mysql.ingress.hostname }}
+    - host: {{ .Values.zabbix_web_nginx_mysql.ingress.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ template "zabbix-web-nginx-mysql.fullname" $ }}
+                port:
+                  number: 80
+    {{- end }}
+  {{- if .Values.zabbix_web_nginx_mysql.ingress.tls.enable }}
+  tls:
+  - hosts:
+    - {{ .Values.zabbix_web_nginx_mysql.ingress.hostname }}
+    secretName: {{ .Values.zabbix_web_nginx_mysql.ingress.Secretkeyname }}
+    {{- if .Values.zabbix_web_nginx_mysql.ingress.tls.value }}
+{{ toYaml .Values.zabbix_web_nginx_mysql.ingress.tls.value | indent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

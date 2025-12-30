@@ -1,0 +1,21 @@
+{{- if and .Values.zabbix_web_nginx_mysql.enable .Values.zabbix_web_nginx_mysql.ingress.enable .Values.zabbix_web_nginx_mysql.ingress.tls.enable (eq .Values.zabbix_web_nginx_mysql.service.type "ClusterIP") }}
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  {{- if .Values.zabbix_web_nginx_mysql.ingress.enviroment }}
+  name: letsencrypt-{{ .Values.zabbix_web_nginx_mysql.ingress.enviroment }}
+  {{- end }}
+spec:
+  acme:
+    {{- if eq .Values.zabbix_web_nginx_mysql.ingress.enviroment "staging" }}
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    {{- else if eq .Values.zabbix_web_nginx_mysql.ingress.enviroment "prod" }}
+    server: https://acme-v02.api.letsencrypt.org/directory
+    {{- end }}
+    privateKeySecretRef:
+      name: {{ .Values.zabbix_web_nginx_mysql.ingress.Secretkeyname }}
+    solvers:
+      - http01:
+          ingress:
+            class: {{ .Values.zabbix_web_nginx_mysql.ingress.className }}
+{{- end }}

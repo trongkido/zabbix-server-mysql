@@ -1,0 +1,99 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+Annotations:
+app.kubernetes.io/name: {{ include "zabbix.fullname" . }}
+helm.sh/chart: {{ include "zabbix.chart" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+
+{{- if and .Values.zabbix_server_mysql.enable .Values.zabbix_web_nginx_mysql.enable }}
+You can login to the admin panel using the following initial credentials (if
+not changed yet):
+
+        Username: Admin
+        Password: zabbix
+
+        !!! Please change the password after 1st login !!!
+
+First time zabbix is deployed could take a long creating database scheme so
+please, be patient.
+
+{{- end }}
+
+
+{{- if .Values.zabbix_web_nginx_mysql.ingress.enable }}
+You can login to the admin panel at
+        
+    {{- if .Values.zabbix_web_nginx_mysql.ingress.tls.enable }}        
+    https://{{ .Values.zabbix_web_nginx_mysql.ingress.hostname }}
+    {{- else }}
+    http://{{ .Values.zabbix_web_nginx_mysql.ingress.hostname }}
+    {{- end }}
+
+{{- else }}
+Get the application URL by running these commands:
+
+{{- if contains "NodePort" .Values.zabbix_web_nginx_mysql.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "zabbix-web-nginx-mysql.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "Zabbix URL: http://$NODE_IP:$NODE_PORT"
+
+{{- else if contains "LoadBalancer" .Values.zabbix_web_nginx_mysql.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch its status by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "zabbix-web-nginx-mysql.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "zabbix-web-nginx-mysql.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo "Zabbix URL:  http://$SERVICE_IP:{{ .Values.zabbix_web_nginx_mysql.service.port }}"
+
+{{- else if contains "ClusterIP" .Values.zabbix_web_nginx_mysql.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "zabbix-web-nginx-mysql.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
+
+{{- end }}
+{{- end }}
+
+{{- if .Values.zabbixAgent.enabled }}
+Zabbix agent installed:  "{{ .Values.zabbixAgent.image.repository }}:{{ .Values.zabbixAgent.image.tag }}"
+
+To get the {$KUBE.NODES.ENDPOINT.NAME}, try:
+
+$ kubectl get svc {{ template "zabbix.agent.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath={.metadata.name}
+$ kubectl get ep {{ template "zabbix.agent.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath={.metadata.name}
+{{- end }}
+
+{{- if .Values.zabbixProxy.enabled }}
+Zabbix proxy installed:  "{{ .Values.zabbixProxy.image.repository }}:{{ .Values.zabbixProxy.image.tag }}"
+
+To get the cluster info, try:
+
+$ kubectl config view -o jsonpath={.clusters[0].cluster.server}
+{{- end }}
+
+{{- if .Values.zabbixJavaGateway.enabled }}
+Zabbix Java gateway installed:  "{{ .Values.zabbixJavaGateway.image.repository }}:{{ .Values.zabbixJavaGateway.image.tag }}"
+{{- end }}
+
+{{ if .Values.serviceAccount.create }}
+Service account created:
+    {{ default (include "zabbix.fullname" .) .Values.serviceAccount.name -}}
+
+To get the secret from service account, try:
+
+$ kubectl get secret {{ default (include "zabbix.fullname" .) .Values.serviceAccount.name -}} -n {{ .Release.Namespace }} -o jsonpath={.data.token} | base64 -d
+{{- else -}}
+{{ default "default" .Values.serviceAccount.name }}
+
+To get the secret from service account, try:
+
+$ kubectl get secret {{ default "default" .Values.serviceAccount.name }} -n {{ .Release.Namespace }} -o jsonpath={.data.token} | base64 -d
+{{- end }}
+
+To learn more about the release, try:
+
+$ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+$ helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
