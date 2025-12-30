@@ -61,9 +61,9 @@ mysql:
     createDatabase: false
     database: "zabbixdb"
     username: "zabbixmonitor"
-    password: "123@123a"
+    password: "password"
     replicationUser: repluser
-    replicationPassword: 123@123a
+    replicationPassword: password
     existingSecret: ""
     usePasswordFiles: false
     customPasswordFiles: {}
